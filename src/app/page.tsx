@@ -48,16 +48,20 @@ export default function NotesApp() {
   useEffect(() => {
     const savedNotes = localStorage.getItem('notes')
     const savedTags = localStorage.getItem('tags')
+    
     if (savedNotes) {
-      setNotes(JSON.parse(savedNotes))
-    }
+      const parsedNotes = JSON.parse(savedNotes) as Note[]
+      setNotes(parsedNotes)
+      
       if (savedTags) {
-        setTags(JSON.parse(savedTags) as string[])
+        const parsedTags = JSON.parse(savedTags) as string[]
+        setTags(parsedTags)
       } else {
-        // Initialize tags from existing notes
-        const noteTags = Array.from(new Set(JSON.parse(savedNotes || '[]').flatMap((note: Note) => note.tags || [])))
+        // Initialize tags from existing notes if no saved tags
+        const noteTags = Array.from(new Set(parsedNotes.flatMap(note => note.tags || [])))
         setTags(noteTags)
       }
+    }
   }, [])
 
   // Save notes and tags to localStorage
@@ -160,143 +164,114 @@ export default function NotesApp() {
               </Button>
             </SheetTrigger>
           <SheetContent side="left" className="w-[240px] sm:w-[280px]">
-            <nav className="flex flex-col gap-2 mt-4">
-              <Button 
-                variant={filter === "notes" ? "default" : "ghost"} 
-                className="justify-start gap-2"
-                onClick={() => setFilter("notes")}
-              >
-                <LightbulbIcon className="h-4 w-4" />
-                Notes
-              </Button>
-              <Button 
-                variant={filter === "reminders" ? "default" : "ghost"} 
-                className="justify-start gap-2 text-muted-foreground"
-                onClick={() => setFilter("reminders")}
-              >
-                Reminders
-              </Button>
-              <Button 
-                variant={filter === "archive" ? "default" : "ghost"} 
-                className="justify-start gap-2 text-muted-foreground"
-                onClick={() => setFilter("archive")}
-              >
-                Archive
-              </Button>
-              <Button 
-                variant={filter === "trash" ? "default" : "ghost"} 
-                className="justify-start gap-2 text-muted-foreground"
-                onClick={() => setFilter("trash")}
-              >
-                Trash
-              </Button>
-          {/* Tags Section */}
-          <div className="mt-6 border-t pt-4">
-            <h3 className="text-sm font-semibold mb-2">Tags</h3>
-            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-              {Array.from(new Set(notes.flatMap(note => note.tags || []))).map(tag => (
-                <div key={tag} className="flex items-center gap-1">
-                  <button
-                    className="flex-1 text-left text-sm px-2 py-1 rounded hover:bg-muted"
+            <ScrollArea className="h-[calc(100vh-3.5rem)]">
+              <nav className="flex flex-col gap-2 p-4">
+                <Button 
+                  variant={filter === "notes" ? "default" : "ghost"} 
+                  className="justify-start gap-2"
+                  onClick={() => setFilter("notes")}
+                >
+                  <LightbulbIcon className="h-4 w-4" />
+                  Notes
+                </Button>
+                <Button 
+                  variant={filter === "reminders" ? "default" : "ghost"} 
+                  className="justify-start gap-2 text-muted-foreground"
+                  onClick={() => setFilter("reminders")}
+                >
+                  <Bell className="h-4 w-4" />
+                  Reminders
+                </Button>
+                <Button 
+                  variant={filter === "archive" ? "default" : "ghost"} 
+                  className="justify-start gap-2 text-muted-foreground"
+                  onClick={() => setFilter("archive")}
+                >
+                  <Archive className="h-4 w-4" />
+                  Archive
+                </Button>
+                <Button 
+                  variant={filter === "trash" ? "default" : "ghost"} 
+                  className="justify-start gap-2 text-muted-foreground"
+                  onClick={() => setFilter("trash")}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Trash
+                </Button>
+                {tags.map(tag => (
+                  <Button
+                    key={tag}
+                    variant="ghost"
+                    className="justify-start gap-2 text-muted-foreground"
                     onClick={() => setSearchQuery(tag)}
-                    title="Click to filter by tag"
                   >
+                    <Tag className="h-4 w-4" />
                     {tag}
-                  </button>
-                  <button
-                    className="text-sm px-2 py-1 rounded hover:bg-muted text-destructive"
-                    onClick={() => {
-                      setNotes(prev => prev.map(note => ({
-                        ...note,
-                        tags: note.tags?.filter(t => t !== tag) || []
-                      })))
-                    }}
-                    title="Remove tag from all notes"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2 mt-2">
-              <input
-                type="text"
-                placeholder="Add new tag"
-                className="flex-1 rounded border border-muted px-2 py-1 text-sm"
-                value={newTagInput}
-                onChange={(e) => setNewTagInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newTagInput.trim()) {
-                    e.preventDefault()
-                    if (!Array.from(new Set(notes.flatMap(note => note.tags || []))).includes(newTagInput.trim())) {
-                      // Add new tag to all notes as empty tag array if none
-                      setNotes(prev => prev.map(note => ({
-                        ...note,
-                        tags: note.tags ? note.tags : []
-                      })))
-                      setNewTagInput("")
-                    }
-                  }
-                }}
-              />
-              <button
-                className="rounded border border-muted px-4 py-1 text-sm"
-                onClick={() => {
-                  if (newTagInput.trim() && !Array.from(new Set(notes.flatMap(note => note.tags || []))).includes(newTagInput.trim())) {
-                    setNotes(prev => prev.map(note => ({
-                      ...note,
-                      tags: note.tags ? note.tags : []
-                    })))
-                    setNewTagInput("")
-                  }
-                }}
-              >
-                Add Tag
-              </button>
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="mt-2 w-full"
-              onClick={() => setIsEditTagsOpen(true)}
-            >
-              Edit Tags
-            </Button>
+                  </Button>
+                ))}
 
-                <Dialog open={isEditTagsOpen} onOpenChange={setIsEditTagsOpen}>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Edit Tags</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap gap-2">
-                        {Array.from(new Set(notes.flatMap(note => note.tags || []))).map(tag => (
-                          <div key={tag} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md">
-                            <span className="text-sm">{tag}</span>
-                            <button
-                              onClick={() => {
-                                setNotes(prev => prev.map(note => ({
-                                  ...note,
-                                  tags: note.tags?.filter(t => t !== tag) || []
-                                })))
-                              }}
-                              className="hover:text-destructive"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Click × to remove a tag from all notes
-                      </p>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </nav>
+                {/* Tag Management */}
+                <div className="mt-6 border-t pt-4">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add new tag"
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && newTagInput.trim()) {
+                          e.preventDefault()
+                          addTag(newTagInput)
+                        }
+                      }}
+                    />
+                    <Button 
+                      variant="secondary"
+                      onClick={() => newTagInput.trim() && addTag(newTagInput)}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2 w-full"
+                    onClick={() => setIsEditTagsOpen(true)}
+                  >
+                    Edit Tags
+                  </Button>
+                </div>
+              </nav>
+            </ScrollArea>
           </SheetContent>
           </Sheet>
+
+          {/* Edit Tags Dialog */}
+          <Dialog open={isEditTagsOpen} onOpenChange={setIsEditTagsOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Tags</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  {tags.map(tag => (
+                    <div key={tag} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md">
+                      <span className="text-sm">{tag}</span>
+                      <button
+                        onClick={() => removeTag(tag)}
+                        className="hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Click × to remove a tag
+                </p>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <div className="flex-1">
             <form className="flex items-center gap-4" onSubmit={(e) => e.preventDefault()}>
               <div className="flex-1 relative">
@@ -316,36 +291,85 @@ export default function NotesApp() {
       {/* Main Content */}
       <main className="flex min-h-screen pt-14">
         {/* Sidebar - Hidden on mobile */}
-        <aside className="hidden md:flex w-[240px] flex-col gap-2 border-r p-4">
-          <Button 
-            variant={filter === "notes" ? "default" : "ghost"} 
-            className="justify-start gap-2"
-            onClick={() => setFilter("notes")}
-          >
-            <LightbulbIcon className="h-4 w-4" />
-            Notes
-          </Button>
-          <Button 
-            variant={filter === "reminders" ? "default" : "ghost"} 
-            className="justify-start gap-2 text-muted-foreground"
-            onClick={() => setFilter("reminders")}
-          >
-            Reminders
-          </Button>
-          <Button 
-            variant={filter === "archive" ? "default" : "ghost"} 
-            className="justify-start gap-2 text-muted-foreground"
-            onClick={() => setFilter("archive")}
-          >
-            Archive
-          </Button>
-          <Button 
-            variant={filter === "trash" ? "default" : "ghost"} 
-            className="justify-start gap-2 text-muted-foreground"
-            onClick={() => setFilter("trash")}
-          >
-            Trash
-          </Button>
+        <aside className="hidden md:flex w-[240px] flex-col border-r">
+          <ScrollArea className="h-[calc(100vh-3.5rem)] p-4">
+            <div className="flex flex-col gap-2">
+              <Button 
+                variant={filter === "notes" ? "default" : "ghost"} 
+                className="justify-start gap-2"
+                onClick={() => setFilter("notes")}
+              >
+                <LightbulbIcon className="h-4 w-4" />
+                Notes
+              </Button>
+              <Button 
+                variant={filter === "reminders" ? "default" : "ghost"} 
+                className="justify-start gap-2 text-muted-foreground"
+                onClick={() => setFilter("reminders")}
+              >
+                <Bell className="h-4 w-4" />
+                Reminders
+              </Button>
+              <Button 
+                variant={filter === "archive" ? "default" : "ghost"} 
+                className="justify-start gap-2 text-muted-foreground"
+                onClick={() => setFilter("archive")}
+              >
+                <Archive className="h-4 w-4" />
+                Archive
+              </Button>
+              <Button 
+                variant={filter === "trash" ? "default" : "ghost"} 
+                className="justify-start gap-2 text-muted-foreground"
+                onClick={() => setFilter("trash")}
+              >
+                <Trash2 className="h-4 w-4" />
+                Trash
+              </Button>
+              {tags.map(tag => (
+                <Button
+                  key={tag}
+                  variant="ghost"
+                  className="justify-start gap-2 text-muted-foreground"
+                  onClick={() => setSearchQuery(tag)}
+                >
+                  <Tag className="h-4 w-4" />
+                  {tag}
+                </Button>
+              ))}
+            </div>
+
+            {/* Tag Management */}
+            <div className="mt-6 border-t pt-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add new tag"
+                  value={newTagInput}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newTagInput.trim()) {
+                      e.preventDefault()
+                      addTag(newTagInput)
+                    }
+                  }}
+                />
+                <Button 
+                  variant="secondary"
+                  onClick={() => newTagInput.trim() && addTag(newTagInput)}
+                >
+                  Add
+                </Button>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2 w-full"
+                onClick={() => setIsEditTagsOpen(true)}
+              >
+                Edit Tags
+              </Button>
+            </div>
+          </ScrollArea>
         </aside>
 
         {/* Notes Content */}
