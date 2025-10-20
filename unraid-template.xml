@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>GoogleKeepClone</Name>
+  <Repository>googlekeep-clone:latest</Repository>
+  <Registry>-</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/yourusername/googlekeep-clone/issues</Support>
+  <Project>https://github.com/yourusername/googlekeep-clone</Project>
+  <Overview>A fully functional Google Keep clone with note-taking, tagging, reminders, and more. Built with Next.js and PostgreSQL, perfect for self-hosting on Unraid.</Overview>
+  <Category>Productivity: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8000]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/yourusername/googlekeep-clone/main/unraid-template.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/yourusername/googlekeep-clone/main/public/icon.png</Icon>
+  <ExtraParams>--restart=unless-stopped</ExtraParams>
+  <PostArgs></PostArgs>
+  <CPUset></CPUset>
+  <DateInstalled></DateInstalled>
+  <DonateText>Support Development</DonateText>
+  <DonateLink>https://github.com/sponsors/yourusername</DonateLink>
+  <Requires>PostgreSQL database (included in docker-compose setup)</Requires>
+  <Config Name="WebUI Port" Target="8000" Default="8000" Mode="tcp" Description="Port for accessing the web interface" Type="Port" Display="always" Required="true" Mask="false">8000</Config>
+  <Config Name="App Data" Target="/app/data" Default="/mnt/user/appdata/googlekeep" Mode="rw" Description="Directory for application data" Type="Path" Display="advanced" Required="false" Mask="false">/mnt/user/appdata/googlekeep</Config>
+  <Config Name="Postgres Data" Target="/var/lib/postgresql/data" Default="/mnt/user/appdata/googlekeep/postgres" Mode="rw" Description="PostgreSQL database files" Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/googlekeep/postgres</Config>
+  <Config Name="Uploads" Target="/app/public/uploads" Default="/mnt/user/appdata/googlekeep/uploads" Mode="rw" Description="Uploaded files and images" Type="Path" Display="advanced" Required="false" Mask="false">/mnt/user/appdata/googlekeep/uploads</Config>
+  <Config Name="Database URL" Target="DATABASE_URL" Default="postgresql://keepuser:keeppassword@postgres:5432/googlekeep?schema=public" Mode="" Description="PostgreSQL connection string (usually no need to change)" Type="Variable" Display="advanced" Required="true" Mask="false">postgresql://keepuser:keeppassword@postgres:5432/googlekeep?schema=public</Config>
+  <Config Name="NextAuth URL" Target="NEXTAUTH_URL" Default="http://localhost:8000" Mode="" Description="The canonical URL of your site (change to your domain or IP)" Type="Variable" Display="always" Required="true" Mask="false">http://localhost:8000</Config>
+  <Config Name="NextAuth Secret" Target="NEXTAUTH_SECRET" Default="" Mode="" Description="Secret key for NextAuth (generate with: openssl rand -base64 32)" Type="Variable" Display="always" Required="true" Mask="true">CHANGE_ME_GENERATE_RANDOM_STRING</Config>
+  <Config Name="Postgres User" Target="POSTGRES_USER" Default="keepuser" Mode="" Description="PostgreSQL username" Type="Variable" Display="advanced" Required="true" Mask="false">keepuser</Config>
+  <Config Name="Postgres Password" Target="POSTGRES_PASSWORD" Default="keeppassword" Mode="" Description="PostgreSQL password" Type="Variable" Display="advanced" Required="true" Mask="true">keeppassword</Config>
+  <Config Name="Postgres Database" Target="POSTGRES_DB" Default="googlekeep" Mode="" Description="PostgreSQL database name" Type="Variable" Display="advanced" Required="true" Mask="false">googlekeep</Config>
+  <Config Name="Node Environment" Target="NODE_ENV" Default="production" Mode="" Description="Node environment (leave as production)" Type="Variable" Display="advanced" Required="false" Mask="false">production</Config>
+</Container>

@@ -1,12 +1,13 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
+import { Providers } from "@/components/providers"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Notes App",
-  description: "A Google Keep clone built with Next.js",
+  title: "Google Keep Clone",
+  description: "A fully functional Google Keep clone with Docker support",
 }
 
 export default function RootLayout({
@@ -17,9 +18,11 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={inter.className}>
-        <div className="min-h-screen bg-background">
-          {children}
-        </div>
+        <Providers>
+          <div className="min-h-screen bg-background">
+            {children}
+          </div>
+        </Providers>
       </body>
     </html>
   )
