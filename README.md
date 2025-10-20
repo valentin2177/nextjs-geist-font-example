@@ -51,7 +51,7 @@ A fully functional, self-hosted Google Keep clone built with Next.js, PostgreSQL
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone [<repository-url>](https://github.com/valentin2177/nextjs-geist-font-example)
 cd nextjs-geist-font-example
 ```
 
