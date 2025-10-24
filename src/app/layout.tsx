@@ -1,13 +1,10 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
 import "./globals.css"
 import { Providers } from "@/components/providers"
 
-const inter = Inter({ subsets: ["latin"] })
-
 export const metadata: Metadata = {
-  title: "Google Keep Clone",
-  description: "A fully functional Google Keep clone with Docker support",
+  title: "Pokédex - Pokemon Browser",
+  description: "A beautiful Pokedex with filters and bilingual support (German/English)",
 }
 
 export default function RootLayout({
@@ -16,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={inter.className}>
+    <html lang="de" className="dark">
+      <body className="font-sans antialiased">
         <Providers>
           <div className="min-h-screen bg-background">
             {children}

@@ -3,567 +3,311 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Menu, Search, Plus, LightbulbIcon, Archive, Trash2, Bell, Tag, X } from "lucide-react"
-import { NoteCard } from "@/components/note-card"
+import { Badge } from "@/components/ui/badge"
+import { Search, Sparkles } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import Image from "next/image"
 
-interface Note {
-  id: string
-  title: string
-  content: string
-  pinned: boolean
-  createdAt: Date
-  color?: string
-  tags?: string[]
-  images?: string[]
-  reminder?: Date | null
-  archived?: boolean
-  trashed?: boolean
+interface Pokemon {
+  id: number
+  name: string
+  nameDE: string
+  nameEN: string
+  sprite: string
+  types: string[]
+  generation: number
 }
 
-export default function NotesApp() {
-  const [notes, setNotes] = useState<Note[]>([])
-  const [tags, setTags] = useState<string[]>([])
-  const COLORS = [
-    "bg-background",
-    "bg-red-900/20",
-    "bg-green-900/20",
-    "bg-blue-900/20",
-    "bg-yellow-900/20",
-    "bg-purple-900/20"
-  ]
+const TYPE_COLORS: Record<string, string> = {
+  normal: "bg-gray-400",
+  fire: "bg-orange-500",
+  water: "bg-blue-500",
+  electric: "bg-yellow-400",
+  grass: "bg-green-500",
+  ice: "bg-cyan-300",
+  fighting: "bg-red-600",
+  poison: "bg-purple-500",
+  ground: "bg-yellow-600",
+  flying: "bg-indigo-400",
+  psychic: "bg-pink-500",
+  bug: "bg-lime-500",
+  rock: "bg-yellow-700",
+  ghost: "bg-purple-700",
+  dragon: "bg-indigo-600",
+  dark: "bg-gray-700",
+  steel: "bg-gray-500",
+  fairy: "bg-pink-300",
+}
 
-  const [newNote, setNewNote] = useState({ title: "", content: "", reminder: null as Date | null, color: undefined as string | undefined, tags: [] as string[], images: [] as string[], tagInput: "" })
+const TYPE_NAMES_DE: Record<string, string> = {
+  normal: "Normal",
+  fire: "Feuer",
+  water: "Wasser",
+  electric: "Elektro",
+  grass: "Pflanze",
+  ice: "Eis",
+  fighting: "Kampf",
+  poison: "Gift",
+  ground: "Boden",
+  flying: "Flug",
+  psychic: "Psycho",
+  bug: "Käfer",
+  rock: "Gestein",
+  ghost: "Geist",
+  dragon: "Drache",
+  dark: "Unlicht",
+  steel: "Stahl",
+  fairy: "Fee",
+}
+
+export default function PokedexApp() {
+  const [pokemon, setPokemon] = useState<Pokemon[]>([])
+  const [filteredPokemon, setFilteredPokemon] = useState<Pokemon[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [filter, setFilter] = useState<"notes" | "reminders" | "archive" | "trash">("notes")
-  const [isEditTagsOpen, setIsEditTagsOpen] = useState(false)
-  const [newTagInput, setNewTagInput] = useState("")
+  const [selectedType, setSelectedType] = useState<string | null>(null)
+  const [selectedGeneration, setSelectedGeneration] = useState<number | null>(null)
 
-  // Load notes and tags from localStorage
   useEffect(() => {
-    const savedNotes = localStorage.getItem('notes')
-    const savedTags = localStorage.getItem('tags')
-    
-    if (savedNotes) {
-      const parsedNotes = JSON.parse(savedNotes) as Note[]
-      setNotes(parsedNotes)
-      
-      if (savedTags) {
-        const parsedTags = JSON.parse(savedTags) as string[]
-        setTags(parsedTags)
-      } else {
-        // Initialize tags from existing notes if no saved tags
-        const noteTags = Array.from(new Set(parsedNotes.flatMap(note => note.tags || [])))
-        setTags(noteTags)
-      }
-    }
+    fetchPokemon()
   }, [])
 
-  // Save notes and tags to localStorage
   useEffect(() => {
-    localStorage.setItem('notes', JSON.stringify(notes))
-    localStorage.setItem('tags', JSON.stringify(tags))
-  }, [notes, tags])
+    filterPokemon()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pokemon, searchQuery, selectedType, selectedGeneration])
 
-  const addTag = (tag: string) => {
-    if (tag.trim() && !tags.includes(tag.trim())) {
-      setTags(prev => [...prev, tag.trim()])
-      setNewTagInput("")
+  const fetchPokemon = async () => {
+    try {
+      setLoading(true)
+      // Fetch first 151 Pokemon (Generation 1) - you can increase this
+      const limit = 151
+      const response = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=${limit}`)
+      const data = await response.json()
+
+      const pokemonDetails = await Promise.all(
+        data.results.map(async (p: { name: string; url: string }) => {
+          try {
+            // Fetch Pokemon details
+            const detailResponse = await fetch(p.url)
+            const details = await detailResponse.json()
+
+            // Fetch species for German name
+            const speciesResponse = await fetch(details.species.url)
+            const species = await speciesResponse.json()
+
+            const germanName = species.names.find((n: { language: { name: string }; name: string }) => n.language.name === "de")?.name || details.name
+            const englishName = species.names.find((n: { language: { name: string }; name: string }) => n.language.name === "en")?.name || details.name
+
+            return {
+              id: details.id,
+              name: details.name,
+              nameDE: germanName,
+              nameEN: englishName,
+              sprite: details.sprites.other["official-artwork"].front_default || details.sprites.front_default,
+              types: details.types.map((t: { type: { name: string } }) => t.type.name),
+              generation: details.id <= 151 ? 1 : details.id <= 251 ? 2 : details.id <= 386 ? 3 : 4,
+            }
+          } catch (error) {
+            console.error(`Error fetching pokemon ${p.name}:`, error)
+            return null
+          }
+        })
+      )
+
+      setPokemon(pokemonDetails.filter((p): p is Pokemon => p !== null))
+    } catch (error) {
+      console.error("Error fetching pokemon:", error)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const removeTag = (tagToRemove: string) => {
-    setTags(prev => prev.filter(tag => tag !== tagToRemove))
-    // Also remove the tag from all notes
-    setNotes(prev => prev.map(note => ({
-      ...note,
-      tags: note.tags?.filter(tag => tag !== tagToRemove) || []
-    })))
-  }
+  const filterPokemon = () => {
+    let filtered = [...pokemon]
 
-  const addNote = () => {
-    if (newNote.title.trim() || newNote.content.trim()) {
-      const note: Note = {
-        id: Date.now().toString(),
-        title: newNote.title,
-        content: newNote.content,
-        pinned: false,
-        createdAt: new Date(),
-        color: newNote.color || undefined,
-        tags: newNote.tags || [],
-        images: newNote.images || [],
-        reminder: newNote.reminder || null,
-        archived: false,
-        trashed: false,
-      }
-      setNotes(prev => [note, ...prev])
-      setNewNote({ title: "", content: "", reminder: null, color: undefined, tags: [], images: [], tagInput: "" })
-      setIsExpanded(false)
+    // Filter by search query (German or English name)
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (p) =>
+          p.nameDE.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.nameEN.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.id.toString().includes(searchQuery)
+      )
     }
-  }
 
-  const handleArchive = (noteId: string) => {
-    setNotes(prev => prev.map(note => 
-      note.id === noteId ? { ...note, archived: !note.archived } : note
-    ))
-  }
-
-  const handleDelete = (noteId: string) => {
-    setNotes(prev => prev.map(note => 
-      note.id === noteId ? { ...note, trashed: true } : note
-    ))
-  }
-
-  const togglePin = (id: string) => {
-    setNotes(prev => prev.map(note => 
-      note.id === id ? { ...note, pinned: !note.pinned } : note
-    ))
-  }
-
-  const updateNote = (updatedNote: Note) => {
-    setNotes(prev => prev.map(note => 
-      note.id === updatedNote.id ? updatedNote : note
-    ))
-  }
-
-  const filteredNotes = notes.filter(note => {
-    if (filter === "reminders") {
-      return note.reminder !== null && !note.trashed
+    // Filter by type
+    if (selectedType) {
+      filtered = filtered.filter((p) => p.types.includes(selectedType))
     }
-    if (filter === "archive") {
-      return note.archived && !note.trashed
-    }
-    if (filter === "trash") {
-      return note.trashed
-    }
-    // filter === "notes"
-    return !note.archived && !note.trashed
-  }).filter(note => 
-    note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    note.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    note.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
 
-  const pinnedNotes = filteredNotes.filter(note => note.pinned)
-  const unpinnedNotes = filteredNotes.filter(note => !note.pinned)
+    // Filter by generation
+    if (selectedGeneration) {
+      filtered = filtered.filter((p) => p.generation === selectedGeneration)
+    }
+
+    setFilteredPokemon(filtered)
+  }
+
+  const allTypes = Array.from(new Set(pokemon.flatMap((p) => p.types)))
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-red-500 via-purple-500 to-blue-500">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
-        <div className="flex h-14 items-center px-4 gap-4">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-          <SheetContent side="left" className="w-[240px] sm:w-[280px]">
-            <ScrollArea className="h-[calc(100vh-3.5rem)]">
-              <nav className="flex flex-col gap-2 p-4">
-                <Button 
-                  variant={filter === "notes" ? "default" : "ghost"} 
-                  className="justify-start gap-2"
-                  onClick={() => setFilter("notes")}
-                >
-                  <LightbulbIcon className="h-4 w-4" />
-                  Notes
-                </Button>
-                <Button 
-                  variant={filter === "reminders" ? "default" : "ghost"} 
-                  className="justify-start gap-2 text-muted-foreground"
-                  onClick={() => setFilter("reminders")}
-                >
-                  <Bell className="h-4 w-4" />
-                  Reminders
-                </Button>
-                <Button 
-                  variant={filter === "archive" ? "default" : "ghost"} 
-                  className="justify-start gap-2 text-muted-foreground"
-                  onClick={() => setFilter("archive")}
-                >
-                  <Archive className="h-4 w-4" />
-                  Archive
-                </Button>
-                <Button 
-                  variant={filter === "trash" ? "default" : "ghost"} 
-                  className="justify-start gap-2 text-muted-foreground"
-                  onClick={() => setFilter("trash")}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Trash
-                </Button>
-                {tags.map(tag => (
+      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <Sparkles className="h-8 w-8 text-yellow-500" />
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent">
+              Pokédex
+            </h1>
+            <Sparkles className="h-8 w-8 text-yellow-500" />
+          </div>
+
+          {/* Search */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Suche nach Pokemon (z.B. Pikachu, Glurak)..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="space-y-4">
+            {/* Type Filters */}
+            <div>
+              <p className="text-sm font-medium mb-2">Typ Filter:</p>
+              <ScrollArea className="w-full whitespace-nowrap">
+                <div className="flex gap-2 pb-2">
                   <Button
-                    key={tag}
-                    variant="ghost"
-                    className="justify-start gap-2 text-muted-foreground"
-                    onClick={() => setSearchQuery(tag)}
+                    variant={selectedType === null ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedType(null)}
                   >
-                    <Tag className="h-4 w-4" />
-                    {tag}
+                    Alle Typen
                   </Button>
-                ))}
-
-                {/* Tag Management */}
-                <div className="mt-6 border-t pt-4">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Add new tag"
-                      value={newTagInput}
-                      onChange={(e) => setNewTagInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && newTagInput.trim()) {
-                          e.preventDefault()
-                          addTag(newTagInput)
-                        }
-                      }}
-                    />
-                    <Button 
-                      variant="secondary"
-                      onClick={() => newTagInput.trim() && addTag(newTagInput)}
+                  {allTypes.sort().map((type) => (
+                    <Button
+                      key={type}
+                      variant={selectedType === type ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedType(type)}
+                      className={selectedType === type ? TYPE_COLORS[type] : ""}
                     >
-                      Add
+                      {TYPE_NAMES_DE[type] || type}
                     </Button>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-2 w-full"
-                    onClick={() => setIsEditTagsOpen(true)}
-                  >
-                    Edit Tags
-                  </Button>
-                </div>
-              </nav>
-            </ScrollArea>
-          </SheetContent>
-          </Sheet>
-
-          {/* Edit Tags Dialog */}
-          <Dialog open={isEditTagsOpen} onOpenChange={setIsEditTagsOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Tags</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {tags.map(tag => (
-                    <div key={tag} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md">
-                      <span className="text-sm">{tag}</span>
-                      <button
-                        onClick={() => removeTag(tag)}
-                        className="hover:text-destructive"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
                   ))}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Click × to remove a tag
-                </p>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </ScrollArea>
+            </div>
 
-          <div className="flex-1">
-            <form className="flex items-center gap-4" onSubmit={(e) => e.preventDefault()}>
-              <div className="flex-1 relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search notes"
-                  className="pl-8"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+            {/* Generation Filters */}
+            <div>
+              <p className="text-sm font-medium mb-2">Generation Filter:</p>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant={selectedGeneration === null ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedGeneration(null)}
+                >
+                  Alle Generationen
+                </Button>
+                {[1, 2, 3, 4].map((gen) => (
+                  <Button
+                    key={gen}
+                    variant={selectedGeneration === gen ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedGeneration(gen)}
+                  >
+                    Gen {gen}
+                  </Button>
+                ))}
               </div>
-            </form>
+            </div>
           </div>
+
+          {/* Results Count */}
+          <p className="text-sm text-muted-foreground mt-4">
+            {loading ? "Lade Pokemon..." : `${filteredPokemon.length} Pokemon gefunden`}
+          </p>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex min-h-screen pt-14">
-        {/* Sidebar - Hidden on mobile */}
-        <aside className="hidden md:flex w-[240px] flex-col border-r">
-          <ScrollArea className="h-[calc(100vh-3.5rem)] p-4">
-            <div className="flex flex-col gap-2">
-              <Button 
-                variant={filter === "notes" ? "default" : "ghost"} 
-                className="justify-start gap-2"
-                onClick={() => setFilter("notes")}
+      {/* Pokemon Grid */}
+      <main className="container mx-auto px-4 py-8">
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {[...Array(20)].map((_, i) => (
+              <Card key={i} className="overflow-hidden">
+                <CardContent className="p-4">
+                  <Skeleton className="w-full h-40 mb-4" />
+                  <Skeleton className="h-4 w-3/4 mb-2" />
+                  <Skeleton className="h-3 w-1/2" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {filteredPokemon.map((p) => (
+              <Card
+                key={p.id}
+                className="overflow-hidden hover:scale-105 transition-transform duration-200 cursor-pointer group"
               >
-                <LightbulbIcon className="h-4 w-4" />
-                Notes
-              </Button>
-              <Button 
-                variant={filter === "reminders" ? "default" : "ghost"} 
-                className="justify-start gap-2 text-muted-foreground"
-                onClick={() => setFilter("reminders")}
-              >
-                <Bell className="h-4 w-4" />
-                Reminders
-              </Button>
-              <Button 
-                variant={filter === "archive" ? "default" : "ghost"} 
-                className="justify-start gap-2 text-muted-foreground"
-                onClick={() => setFilter("archive")}
-              >
-                <Archive className="h-4 w-4" />
-                Archive
-              </Button>
-              <Button 
-                variant={filter === "trash" ? "default" : "ghost"} 
-                className="justify-start gap-2 text-muted-foreground"
-                onClick={() => setFilter("trash")}
-              >
-                <Trash2 className="h-4 w-4" />
-                Trash
-              </Button>
-              {tags.map(tag => (
-                <Button
-                  key={tag}
-                  variant="ghost"
-                  className="justify-start gap-2 text-muted-foreground"
-                  onClick={() => setSearchQuery(tag)}
-                >
-                  <Tag className="h-4 w-4" />
-                  {tag}
-                </Button>
-              ))}
-            </div>
-
-            {/* Tag Management */}
-            <div className="mt-6 border-t pt-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Add new tag"
-                  value={newTagInput}
-                  onChange={(e) => setNewTagInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && newTagInput.trim()) {
-                      e.preventDefault()
-                      addTag(newTagInput)
-                    }
-                  }}
-                />
-                <Button 
-                  variant="secondary"
-                  onClick={() => newTagInput.trim() && addTag(newTagInput)}
-                >
-                  Add
-                </Button>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="mt-2 w-full"
-                onClick={() => setIsEditTagsOpen(true)}
-              >
-                Edit Tags
-              </Button>
-            </div>
-          </ScrollArea>
-        </aside>
-
-        {/* Notes Content */}
-        <div className="flex-1 p-4">
-          {/* Create Note */}
-          {filter === "notes" && (
-            <Card className="mb-6 p-4 transition-all duration-200">
-          {isExpanded ? (
-            <>
-              <Input
-                placeholder="Title"
-                className="mb-2 border-0 text-lg font-medium focus-visible:ring-0"
-                value={newNote.title}
-                onChange={(e) => setNewNote(prev => ({ ...prev, title: e.target.value }))}
-              />
-              <Textarea
-                placeholder="Take a note..."
-                className="min-h-[100px] border-0 focus-visible:ring-0 resize-none"
-                value={newNote.content}
-                onChange={(e) => setNewNote(prev => ({ ...prev, content: e.target.value }))}
-              />
-              <div className="flex items-center gap-2 mt-2">
-                <Bell className="h-5 w-5 text-muted-foreground" />
-                <input
-                  type="datetime-local"
-                  className="bg-transparent text-muted-foreground text-sm border border-muted rounded px-2 py-1"
-                  value={newNote.reminder ? newNote.reminder.toISOString().slice(0,16) : ""}
-                  onChange={(e) => setNewNote(prev => ({ ...prev, reminder: e.target.value ? new Date(e.target.value) : null }))}
-                />
-              </div>
-              {/* Additional options like color, tags, image upload, archive, delete */}
-              <div className="flex items-center gap-4 mt-4">
-                {/* Color picker */}
-                {COLORS.map(color => (
-                  <button
-                    key={color}
-                    className={`p-1 rounded-full w-6 h-6 ${color} ${newNote.color === color ? "ring-2 ring-offset-1 ring-offset-background ring-primary" : ""}`}
-                    title={color.replace("bg-", "")}
-                    onClick={() => setNewNote(prev => ({ ...prev, color }))}
-                  />
-                ))}
-                {/* Tags */}
-                <div className="flex flex-col gap-2">
-                  {newNote.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {newNote.tags.map(tag => (
-                        <div key={tag} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md">
-                          <Tag className="h-3 w-3" />
-                          <span className="text-sm">{tag}</span>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setNewNote(prev => ({
-                                ...prev,
-                                tags: prev.tags.filter(t => t !== tag)
-                              }))
-                            }}
-                            className="hover:text-destructive"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
+                <CardContent className="p-4">
+                  {/* Pokemon Image */}
+                  <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-lg p-4 mb-3">
+                    <div className="absolute top-2 right-2 bg-background/80 rounded-full px-2 py-1">
+                      <span className="text-xs font-bold text-muted-foreground">#{p.id.toString().padStart(3, '0')}</span>
                     </div>
-                  )}
-                  <div className="flex gap-2">
-                    <Tag className="h-4 w-4" />
-                    <Input
-                      placeholder="Add tag"
-                      className="flex-1"
-                      value={newNote.tagInput || ""}
-                      onChange={(e) => setNewNote(prev => ({ ...prev, tagInput: e.target.value }))}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && newNote.tagInput?.trim()) {
-                          e.preventDefault()
-                          if (!newNote.tags.includes(newNote.tagInput.trim())) {
-                            setNewNote(prev => ({
-                              ...prev,
-                              tags: [...prev.tags, newNote.tagInput!.trim()],
-                              tagInput: ""
-                            }))
-                          }
-                        }
-                      }}
+                    <Image
+                      src={p.sprite}
+                      alt={p.nameDE}
+                      width={128}
+                      height={128}
+                      className="w-full h-32 object-contain group-hover:scale-110 transition-transform duration-200"
+                      unoptimized
                     />
-                    <Button 
-                      variant="secondary" 
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (newNote.tagInput?.trim() && !newNote.tags.includes(newNote.tagInput.trim())) {
-                          setNewNote(prev => ({
-                            ...prev,
-                            tags: [...prev.tags, newNote.tagInput!.trim()],
-                            tagInput: ""
-                          }))
-                        }
-                      }}
-                    >
-                      Add Tag
-                    </Button>
                   </div>
-                </div>
-                {/* Image upload */}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  id="image-upload"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      const reader = new FileReader()
-                      reader.onload = () => {
-                        const result = reader.result as string
-                        setNewNote(prev => ({
-                          ...prev,
-                          images: [...prev.images, result]
-                        }))
-                      }
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                />
-                <label htmlFor="image-upload" className="cursor-pointer rounded bg-muted px-2 py-1 text-sm">
-                  Add Image
-                </label>
-                {/* Archive and Delete buttons */}
-                <Button variant="ghost" size="icon" title="Archive" onClick={() => setNewNote(prev => ({ ...prev, archived: true }))}>
-                  <Archive className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" title="Delete" onClick={() => setNewNote(prev => ({ ...prev, trashed: true }))}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex justify-between mt-4">
-                <Button variant="ghost" onClick={() => setIsExpanded(false)}>
-                  Close
-                </Button>
-                <Button onClick={addNote}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Note
-                </Button>
-              </div>
-            </>
-          ) : (
-            <div
-              className="flex items-center gap-2 text-muted-foreground cursor-text"
-              onClick={() => setIsExpanded(true)}
-            >
-              Take a note...
-            </div>
-          )}
-            </Card>
-          )}
 
-          {/* Notes Grid */}
-          <ScrollArea className="h-[calc(100vh-16rem)]">
-            {pinnedNotes.length > 0 && (
-              <>
-                <h2 className="text-sm font-medium mb-4">Pinned</h2>
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-6">
-                  {pinnedNotes.map(note => (
-                    <NoteCard 
-                      key={note.id} 
-                      note={note} 
-                      onPin={togglePin}
-                      onUpdate={updateNote}
-                      onArchive={handleArchive}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                </div>
-                <h2 className="text-sm font-medium mb-4">Others</h2>
-              </>
-            )}
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {unpinnedNotes.map(note => (
-                <NoteCard 
-                  key={note.id} 
-                  note={note} 
-                  onPin={togglePin}
-                  onUpdate={updateNote}
-                  onArchive={handleArchive}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-            {notes.length === 0 && (
-              <div className="text-center text-muted-foreground mt-8">
-                Notes you add appear here
-              </div>
-            )}
-          </ScrollArea>
-        </div>
+                  {/* Pokemon Names */}
+                  <div className="space-y-1 mb-3">
+                    <h3 className="font-bold text-lg truncate">{p.nameDE}</h3>
+                    <p className="text-sm text-muted-foreground truncate">{p.nameEN}</p>
+                  </div>
+
+                  {/* Pokemon Types */}
+                  <div className="flex gap-1 flex-wrap">
+                    {p.types.map((type) => (
+                      <Badge
+                        key={type}
+                        className={`${TYPE_COLORS[type]} text-white text-xs`}
+                      >
+                        {TYPE_NAMES_DE[type] || type}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {!loading && filteredPokemon.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-xl text-muted-foreground">Keine Pokemon gefunden</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Versuche einen anderen Suchbegriff oder Filter
+            </p>
+          </div>
+        )}
       </main>
     </div>
   )
